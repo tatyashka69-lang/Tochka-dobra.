@@ -62,6 +62,7 @@ section{scroll-margin-top:96px;padding:clamp(56px,8vw,96px) 0}
   box-shadow:0 8px 20px rgba(169,114,17,.18);
 }
 .logo-name{font-weight:800;font-size:18px;line-height:1.15}
+/* Подпись под названием - строго в одну строку */
 .logo-sub{
   display:block;font-family:'Inter',sans-serif;font-weight:500;
   font-size:10px;color:var(--muted);letter-spacing:.02em;
@@ -522,8 +523,6 @@ body.menu-open .nav-foot{opacity:1;transform:none}
 .field.error input,.field.error textarea{border-color:#D64545;box-shadow:0 0 0 4px rgba(214,69,69,.1)}
 .err-msg{display:none;font-size:12.5px;color:#C43D3D;margin-top:6px;font-weight:600}
 .field.error .err-msg{display:block}
-.field-row{display:grid;gap:0 18px}
-@media(min-width:640px){.field-row{grid-template-columns:1fr 1fr}}
 .form-note{font-size:12px;color:var(--muted);margin-top:14px}
 
 /* ---------- footer ---------- */
@@ -1019,31 +1018,22 @@ body.menu-open .nav-foot{opacity:1;transform:none}
           <div class="contact-motto">«Доброе дело - добрый след»</div>
         </div>
 
-        <!-- ФОРМА ЗАЯВКИ: Netlify-атрибуты data-netlify="true" и name="zayavka",
-             у всех полей прописаны name -->
-        <form class="form-card reveal d1" id="feedbackForm" name="zayavka" method="post" data-netlify="true" novalidate>
+        <form class="form-card reveal d1" id="feedbackForm" novalidate>
           <h3>Форма обратной связи</h3>
           <p class="form-sub">Оставьте заявку - и мы расскажем, как стать участником площадки.</p>
           <div class="field" id="fieldName">
             <label for="fName">Ваше имя</label>
-            <input type="text" id="fName" name="name" placeholder="Например: Мария Ивановна" autocomplete="name">
+            <input type="text" id="fName" placeholder="Например: Мария Ивановна" autocomplete="name">
             <div class="err-msg">Пожалуйста, укажите имя (минимум 2 символа).</div>
           </div>
-          <div class="field-row">
-            <div class="field" id="fieldPhone">
-              <label for="fPhone">Телефон</label>
-              <input type="tel" id="fPhone" name="phone" placeholder="+7 (___) ___-__-__" autocomplete="tel">
-              <div class="err-msg">Укажите корректный телефон или e-mail рядом.</div>
-            </div>
-            <div class="field" id="fieldEmail">
-              <label for="fEmail">E-mail</label>
-              <input type="email" id="fEmail" name="email" placeholder="name@mail.ru" autocomplete="email">
-              <div class="err-msg">Укажите корректный e-mail или телефон рядом.</div>
-            </div>
+          <div class="field" id="fieldContact">
+            <label for="fContact">Телефон или Email</label>
+            <input type="text" id="fContact" placeholder="+7 (___) ___-__-__ или name@mail.ru" autocomplete="tel">
+            <div class="err-msg">Укажите корректный телефон или email.</div>
           </div>
           <div class="field" id="fieldMsg">
-            <label for="fMsg">Комментарий</label>
-            <textarea id="fMsg" name="comment" placeholder="Расскажите, кем вы хотите участвовать: родитель, педагог, партнёр…"></textarea>
+            <label for="fMsg">Сообщение</label>
+            <textarea id="fMsg" placeholder="Расскажите, кем вы хотите участвовать: родитель, педагог, партнёр…"></textarea>
             <div class="err-msg">Сообщение должно содержать не менее 10 символов.</div>
           </div>
           <button type="submit" class="btn btn-gold" style="width:100%">Отправить заявку</button>
@@ -1128,11 +1118,10 @@ document.addEventListener('DOMContentLoaded', () => {
     b.addEventListener('click', () => showToast(b.dataset.toast))
   );
 
-  // ---------- валидация и отправка формы (Netlify + резервный mailto) ----------
+  // ---------- валидация формы ----------
   const form = document.getElementById('feedbackForm');
   const fName = document.getElementById('fName');
-  const fPhone = document.getElementById('fPhone');
-  const fEmail = document.getElementById('fEmail');
+  const fContact = document.getElementById('fContact');
   const fMsg = document.getElementById('fMsg');
 
   const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
@@ -1142,59 +1131,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-
-    const nameV = fName.value.trim();
-    const phoneV = fPhone.value.trim();
-    const emailV = fEmail.value.trim();
-    const msgV = fMsg.value.trim();
-
-    // Валидация
     let bad = false;
-    bad = mark(document.getElementById('fieldName'), nameV.length < 2) || bad;
-
-    const phoneBad = phoneV ? !isPhone(phoneV) : !emailV;
-    const emailBad = emailV ? !isEmail(emailV) : !phoneV;
-    bad = mark(document.getElementById('fieldPhone'), phoneBad) || bad;
-    bad = mark(document.getElementById('fieldEmail'), emailBad) || bad;
-
-    bad = mark(document.getElementById('fieldMsg'), msgV.length < 10) || bad;
-
+    bad = mark(document.getElementById('fieldName'), fName.value.trim().length < 2) || bad;
+    bad = mark(document.getElementById('fieldContact'), !(isEmail(fContact.value.trim()) || isPhone(fContact.value.trim()))) || bad;
+    bad = mark(document.getElementById('fieldMsg'), fMsg.value.trim().length < 10) || bad;
     if (bad) { showToast('Проверьте выделенные поля формы 🙂'); return; }
-
-    // Отправка в Netlify (форма name="zayavka", data-netlify="true")
-    const params = new URLSearchParams();
-    params.append('form-name', 'zayavka');
-    params.append('name', nameV);
-    params.append('phone', phoneV);
-    params.append('email', emailV);
-    params.append('comment', msgV);
-
-    fetch('/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    })
-    .then(res => {
-      if (!res.ok) throw new Error('Netlify error');
-      showToast('✅ Заявка отправлена! Мы свяжемся с вами в ближайшее время.');
-      form.reset();
-    })
-    .catch(() => {
-      // Резервный вариант: письмо на cvr09@yandex.ru с пометкой
-      const subject = encodeURIComponent('Заявка с сайта Точка добра');
-      const body = encodeURIComponent(
-        'Имя: ' + nameV + '\n' +
-        'Телефон: ' + phoneV + '\n' +
-        'E-mail: ' + emailV + '\n\n' +
-        'Комментарий:\n' + msgV
-      );
-      window.location.href = 'mailto:cvr09@yandex.ru?subject=' + subject + '&body=' + body;
-      showToast('Открываем почтовую программу для отправки заявки…');
-      setTimeout(() => form.reset(), 1000);
-    });
+    showToast('✅ Заявка отправлена! Мы свяжемся с вами в ближайшее время.');
+    form.reset();
   });
-
-  [fName, fPhone, fEmail, fMsg].forEach(inp =>
+  [fName, fContact, fMsg].forEach(inp =>
     inp.addEventListener('input', () => inp.closest('.field').classList.remove('error'))
   );
 
@@ -1202,4 +1147,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
